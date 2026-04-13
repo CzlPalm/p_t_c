@@ -1,0 +1,119 @@
+{
+  "meta": {
+    "browser": "chrome",
+    "version": "143.0.7499.169",
+    "platform": "linux",
+    "arch": "x86_64",
+    "tls_lib": "BoringSSL",
+    "boringssl_commit": "992dfa0b56f98b8decaf82cd8df44aa714675d99",
+    "ghidra_image_base": "0x00100000",
+    "analysis_date": "2026-03-31",
+    "verified": true,
+    "verified_method": "SSLKEYLOGFILE diff + Wireshark decryption",
+    "p3_capture_rate": 0.96,
+    "p4_tuple_hit_rate": 1.0
+  },
+  "hook_points": {
+    "prf": {
+      "function_name": "boringssl_tls1_prf",
+      "ghidra_name": "FUN_0a32d4b0",
+      "rva": "0x0A22D4B0",
+      "fingerprint": "55 48 89 E5 41 57 41 56 41 55 41 54 53 48 83 EC 58 64 48 8B 04 25 28 00 00 00 48 89 45 D0 48 83 FA 30 0F 85 1A 01 00 00",
+      "fingerprint_len": 40,
+      "role": "TLS 1.2 Unified PRF",
+      "params": {
+        "ssl_ptr": "args[0] (RDI)",
+        "output_buf": "args[1] (RSI)",
+        "output_len": "args[2] (RDX, fixed 0x30=48)"
+      },
+      "output_len": 48,
+      "read_on": "onLeave"
+    },
+    "key_expansion": {
+      "function_name": "boringssl_tls1_key_expansion",
+      "ghidra_name": "FUN_0a32d130",
+      "rva": "0x0A22D130",
+      "fingerprint": "55 48 89 E5 41 57 41 56 41 55 41 54 53 48 83 EC 58 4C 89 4D C0 4C 89 45 A8 49 89 CD 49 89 D4 41 89 F7 48 89 FB 45 31 F6 48 8D 75 B8 4C 89 36 48 8D 55 C8 4C 89 32 48 8D 4D D0 4C 89 31 4D 8B 85 C8 00 00 00 E8 37 02 00 00 84 C0 0F 84 CB 00 00 00",
+      "fingerprint_len": 81,
+      "role": "TLS 1.2 key block derivation (supplementary)",
+      "params": {
+        "ssl_ptr": "args[0] (RDI)"
+      },
+      "read_on": "onLeave",
+      "note": "master_secret via calibrated memory path"
+    },
+    "hkdf": {
+      "function_name": "boringssl_tls13_derive_secret",
+      "ghidra_name": "FUN_049837e0",
+      "rva": "0x048837E0",
+      "fingerprint": "55 48 89 E5 41 57 41 56 41 55 41 54 53 48 81 EC 98 00 00 00 4C 89 45 88 49 89 CC 49 89 D7 48 89 F3 49 89 FE 64 48 8B 04 25 28 00 00 00 48 89 45 D0 0F 57 C0 4C 8D 6D 90 41 0F 29 45 30 41 0F 29 45 20 41 0F 29 45 10 41 0F 29 45 00 48 8D 55 80 48 C7 02 00 00 00 00 4C 89 FF 4C 89 EE E8 6E DB A5 FF 84 C0 0F 84 C9 00 00 00",
+      "fingerprint_len": 106,
+      "role": "TLS 1.3 Derive-Secret (single hook for all labels)",
+      "params": {
+        "ssl_ptr": "args[0] (RDI) — NOT ssl_st*, HKDF internal context",
+        "output_buf": "args[1] (RSI)",
+        "hkdf_ctx": "args[2] (RDX)",
+        "label_ptr": "args[3] (RCX)",
+        "label_len": "args[4] (R8)",
+        "evp_md": "args[5] (R9)"
+      },
+      "read_on": "onLeave"
+    },
+    "ssl_log_secret": {
+      "function_name": "ssl_log_secret",
+      "ghidra_name": "FUN_04983520",
+      "rva": "0x04883520",
+      "fingerprint": "55 48 89 E5 41 57 41 56 41 55 41 54 53 48 83 EC 48 48 8B 47 68 41 B4 01 48 83 B8 40 02 00 00 00 75 12",
+      "fingerprint_len": 34,
+      "role": "NSS keylog output (covers PSK/Session Ticket)",
+      "source": "BoringSecretHunter v1.2.1",
+      "status": "located_not_integrated"
+    }
+  },
+  "client_random": {
+    "path": "*(*(*(ssl_ptr) + 0x30) + 0x30)",
+    "steps": [
+      "s3 = ssl_ptr.readPointer()",
+      "sub = s3.add(0x30).readPointer()",
+      "cr = sub.add(0x30).readByteArray(32)"
+    ],
+    "length": 32,
+    "critical_note": "offset is +0x30 NOT +0x10"
+  },
+  "tls13_key_len_offsets": {
+    "c_e_traffic": "0x81",
+    "c_hs_traffic": "0xb2",
+    "s_hs_traffic": "0xe3",
+    "c_ap_traffic": "0x114",
+    "s_ap_traffic": "0x145",
+    "exp_master": {
+      "path": "*(*(*(ssl_ptr) + 0x30) + 0x1b2)",
+      "note": "two-level dereference, different from other labels"
+    }
+  },
+  "tls13_label_map": {
+    "c e traffic": "CLIENT_EARLY_TRAFFIC_SECRET",
+    "c hs traffic": "CLIENT_HANDSHAKE_TRAFFIC_SECRET",
+    "s hs traffic": "SERVER_HANDSHAKE_TRAFFIC_SECRET",
+    "c ap traffic": "CLIENT_TRAFFIC_SECRET_0",
+    "s ap traffic": "SERVER_TRAFFIC_SECRET_0",
+    "exp master": "EXPORTER_SECRET"
+  },
+  "struct_offsets": {
+    "ssl_st_rbio": "0x240",
+    "ssl_st_wbio": "0x248",
+    "bio_st_num": "0x03c",
+    "ssl_st_ext_ms_flag": {
+      "offset": "0x812",
+      "mask": "0x02"
+    },
+    "fd_precision_note": "rbio offset valid on ssl_st* but HKDF args[0] is NOT ssl_st*"
+  },
+  "five_tuple_strategy": {
+    "primary": "time_correlation",
+    "ebpf_tracepoint": "syscalls/sys_enter_connect + sys_exit_connect",
+    "ebpf_filter": "AF_INET, dst_port=443",
+    "fd_precise": false,
+    "hit_rate": "100% (718/718 in P4 validation)"
+  }
+}
